@@ -1,0 +1,15 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.example.chromemobile.MainActivity">
+    <item
+        android:id="@+id/action_import_url"
+        android:orderInCategory="100"
+        android:title="@string/action_import_url"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_shutdown"
+        android:orderInCategory="100"
+        android:title="@string/action_shutdown"
+        app:showAsAction="never" />
+</menu>

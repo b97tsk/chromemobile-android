@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Chrome Mobile</string>
+    <string name="title_activity_import">Import From URL</string>
+    <string name="action_import_url">Import From URL</string>
+    <string name="action_import_now">Import Now</string>
+    <string name="action_shutdown">Shut Down</string>
+    <string name="hint_enter_url">Enter an URL</string>
+    <string name="import_succeeded">Successfully imported.</string>
+    <string name="import_in_progress">URL importing is currently in progress, please try later.</string>
+</resources>

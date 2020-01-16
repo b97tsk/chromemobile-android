@@ -3,6 +3,7 @@ package com.example.chromemobile
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -14,6 +15,7 @@ import kotlinx.android.synthetic.main.content_main.*
 
 class MainActivity : AppCompatActivity() {
 
+    private var serviceWorking = false
     private var shuttingDown = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,7 +47,7 @@ class MainActivity : AppCompatActivity() {
                     PendingIntent.FLAG_ONE_SHOT
                 )
             )
-            startService(this)
+            startChromeService(this)
         }
 
         Intent(this, ChromeService::class.java).run {
@@ -54,16 +56,24 @@ class MainActivity : AppCompatActivity() {
                 "PENDING_INTENT",
                 createPendingResult(ON_CHROME_SERVICE_TRACE, Intent(), 0)
             )
-            startService(this)
+            startChromeService(this)
         }
     }
 
     override fun onStop() {
         super.onStop()
-        if (!shuttingDown) {
-            Intent(this, ChromeService::class.java).run {
-                putExtra("COMMAND", "TRACE")
-                startService(this)
+        when {
+            shuttingDown -> {
+                return
+            }
+            serviceWorking -> {
+                Intent(this, ChromeService::class.java).run {
+                    putExtra("COMMAND", "TRACE")
+                    startChromeService(this)
+                }
+            }
+            else -> {
+                stopChromeService()
             }
         }
     }
@@ -71,7 +81,14 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         when (requestCode) {
             ON_CHROME_SERVICE_START -> {
-                if (data?.extras?.getBoolean("WORKING") == false) {
+                serviceWorking = data?.extras?.getBoolean("WORKING") == true
+                if (serviceWorking) {
+                    // Foreground the service.
+                    Intent(this, ChromeService::class.java).run {
+                        putExtra("COMMAND", "START")
+                        startChromeService(this)
+                    }
+                } else {
                     startImportActivity()
                 }
             }
@@ -81,6 +98,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             ON_CHROME_SERVICE_IMPORT -> {
+                if (resultCode == ChromeService.RESULT_OK) {
+                    serviceWorking = true
+                    // Foreground the service.
+                    Intent(this, ChromeService::class.java).run {
+                        putExtra("COMMAND", "START")
+                        startChromeService(this)
+                    }
+                }
                 data?.extras?.getString("MESSAGE")?.let { message ->
                     Snackbar.make(logTextView, message, Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show()
@@ -100,7 +125,7 @@ class MainActivity : AppCompatActivity() {
                                     PendingIntent.FLAG_ONE_SHOT
                                 )
                             )
-                            startService(this)
+                            startChromeService(this)
                         }
                     }
                 }
@@ -126,6 +151,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun startChromeService(service: Intent) {
+        if (serviceWorking) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                service.putExtra("FOREGROUND", true)
+                startForegroundService(service)
+                return
+            }
+        }
+        startService(service)
+    }
+
+    private fun stopChromeService() {
+        stopService(Intent(this, ChromeService::class.java))
+    }
+
     private fun startImportActivity() {
         val intent = Intent(this, ImportActivity::class.java)
         startActivityForResult(intent, START_IMPORT_ACTIVITY)
@@ -133,7 +173,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun shutdown() {
         shuttingDown = true
-        stopService(Intent(this, ChromeService::class.java))
+        stopChromeService()
         finish()
     }
 

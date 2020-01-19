@@ -47,6 +47,14 @@ class MainActivity : AppCompatActivity() {
                     PendingIntent.FLAG_ONE_SHOT
                 )
             )
+            putExtra(
+                "ON_DESTROY",
+                createPendingResult(
+                    ON_CHROME_SERVICE_DESTROY,
+                    Intent(),
+                    PendingIntent.FLAG_ONE_SHOT
+                )
+            )
             startChromeService(this)
         }
 
@@ -110,6 +118,10 @@ class MainActivity : AppCompatActivity() {
                     Snackbar.make(logTextView, message, Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show()
                 }
+            }
+            ON_CHROME_SERVICE_DESTROY -> {
+                shuttingDown = true
+                finish()
             }
             START_IMPORT_ACTIVITY -> {
                 if (resultCode == Activity.RESULT_OK) {
@@ -181,6 +193,7 @@ class MainActivity : AppCompatActivity() {
         const val ON_CHROME_SERVICE_START = 0
         const val ON_CHROME_SERVICE_TRACE = 1
         const val ON_CHROME_SERVICE_IMPORT = 2
+        const val ON_CHROME_SERVICE_DESTROY = 3
         const val START_IMPORT_ACTIVITY = 100
     }
 }

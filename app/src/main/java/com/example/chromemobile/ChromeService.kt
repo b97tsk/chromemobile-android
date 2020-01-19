@@ -15,6 +15,8 @@ class ChromeService : Service() {
 
     private val notification by lazy { createNotification() }
 
+    private var onDestroyReceiver: PendingIntent? = null
+
     private val log = object : Mutex by Mutex() {
         val text = StringBuilder()
         var pendingIntent: PendingIntent? = null
@@ -49,6 +51,7 @@ class ChromeService : Service() {
         super.onDestroy()
         chrome.shutdown()
         chromemobile.Chromemobile.setLogOutput { }
+        runCatching { onDestroyReceiver?.send() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -61,6 +64,9 @@ class ChromeService : Service() {
                     send(this@ChromeService, RESULT_OK, Intent().apply {
                         putExtra("WORKING", chrome.isWorking)
                     })
+                }
+                intent.extras?.getParcelable<PendingIntent>("ON_DESTROY")?.run {
+                    onDestroyReceiver = this
                 }
             }
             "TRACE" -> {
@@ -94,6 +100,9 @@ class ChromeService : Service() {
                     }
                 }
             }
+            "SHUTDOWN" -> {
+                stopSelf()
+            }
         }
         return START_STICKY
     }
@@ -125,6 +134,18 @@ class ChromeService : Service() {
                         this@ChromeService,
                         0,
                         Intent(this@ChromeService, MainActivity::class.java),
+                        0
+                    )
+                )
+                .addAction(
+                    R.drawable.ic_launcher_foreground,
+                    getText(R.string.action_shutdown),
+                    PendingIntent.getService(
+                        this@ChromeService,
+                        0,
+                        Intent(this@ChromeService, ChromeService::class.java).apply {
+                            putExtra("COMMAND", "SHUTDOWN")
+                        },
                         0
                     )
                 )

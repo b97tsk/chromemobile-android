@@ -101,6 +101,9 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             ON_CHROME_SERVICE_TRACE -> {
+                if (data?.extras?.getBoolean("RESET") == true) {
+                    logTextView.text = ""
+                }
                 data?.extras?.getString("MESSAGE")?.let { message ->
                     logTextView.append(message)
                 }
@@ -157,8 +160,20 @@ class MainActivity : AppCompatActivity() {
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId) {
-            R.id.action_import_url -> true.also { startImportActivity() }
-            R.id.action_shutdown -> true.also { shutdown() }
+            R.id.action_import_url -> true.also {
+                startImportActivity()
+            }
+            R.id.action_restart -> true.also {
+                Intent(this, ChromeService::class.java).run {
+                    putExtra("COMMAND", "RESTART")
+                    startChromeService(this)
+                }
+            }
+            R.id.action_shutdown -> true.also {
+                shuttingDown = true
+                stopChromeService()
+                finish()
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -181,12 +196,6 @@ class MainActivity : AppCompatActivity() {
     private fun startImportActivity() {
         val intent = Intent(this, ImportActivity::class.java)
         startActivityForResult(intent, START_IMPORT_ACTIVITY)
-    }
-
-    private fun shutdown() {
-        shuttingDown = true
-        stopChromeService()
-        finish()
     }
 
     companion object {

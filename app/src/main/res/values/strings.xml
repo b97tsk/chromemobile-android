@@ -6,6 +6,7 @@
     <string name="notification_message">Foreground Service is running as usual.</string>
     <string name="action_import_url">Import From URL</string>
     <string name="action_import_now">Import Now</string>
+    <string name="action_restart">Restart</string>
     <string name="action_shutdown">Shut Down</string>
     <string name="hint_enter_url">Enter an URL</string>
     <string name="import_succeeded">Successfully imported.</string>

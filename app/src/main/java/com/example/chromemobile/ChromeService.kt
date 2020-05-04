@@ -1,9 +1,13 @@
 package com.example.chromemobile
 
 import android.app.*
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.IBinder
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -11,6 +15,7 @@ import kotlinx.coroutines.sync.withLock
 
 class ChromeService : Service() {
 
+    private lateinit var broadcastReceiver: BroadcastReceiver
     private lateinit var chrome: chromemobile.ChromeService
 
     private val notification by lazy { createNotification() }
@@ -28,6 +33,23 @@ class ChromeService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+
+        broadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                when (intent?.action) {
+                    RESTART_ACTION -> restart()
+                    SHUTDOWN_ACTION -> shutdown()
+                }
+            }
+        }
+
+        registerReceiver(
+            broadcastReceiver,
+            IntentFilter().apply {
+                addAction(RESTART_ACTION)
+                addAction(SHUTDOWN_ACTION)
+            }
+        )
 
         chromemobile.Chromemobile.setLogOutput { message ->
             runBlocking {
@@ -49,6 +71,7 @@ class ChromeService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        unregisterReceiver(broadcastReceiver)
         chrome.shutdown()
         chromemobile.Chromemobile.setLogOutput { }
         runCatching { onDestroyReceiver?.send() }
@@ -75,6 +98,7 @@ class ChromeService : Service() {
                         log.withLock {
                             log.pendingIntent = pendingIntent
                             pendingIntent?.send(this@ChromeService, 0, Intent().apply {
+                                putExtra("RESET", true)
                                 putExtra("MESSAGE", log.text.toString())
                             })
                         }
@@ -100,11 +124,32 @@ class ChromeService : Service() {
                     }
                 }
             }
-            "SHUTDOWN" -> {
-                stopSelf()
-            }
+            "RESTART" -> restart()
+            "SHUTDOWN" -> shutdown()
         }
         return START_STICKY
+    }
+
+    private fun restart() {
+        chrome.shutdown()
+        runBlocking {
+            log.withLock {
+                log.text.clear()
+                runCatching {
+                    log.pendingIntent?.send(this@ChromeService, 0, Intent().apply {
+                        putExtra("RESET", true)
+                    })
+                }.onFailure {
+                    log.pendingIntent = null
+                }
+            }
+        }
+        chrome = chromemobile.ChromeService(filesDir.absolutePath)
+        Toast.makeText(this, R.string.import_succeeded, Toast.LENGTH_LONG).show()
+    }
+
+    private fun shutdown() {
+        stopSelf()
     }
 
     private fun createNotification(): Notification {
@@ -139,15 +184,13 @@ class ChromeService : Service() {
                 )
                 .addAction(
                     R.drawable.ic_launcher_foreground,
+                    getText(R.string.action_restart),
+                    PendingIntent.getBroadcast(this@ChromeService, 0, Intent(RESTART_ACTION), 0)
+                )
+                .addAction(
+                    R.drawable.ic_launcher_foreground,
                     getText(R.string.action_shutdown),
-                    PendingIntent.getService(
-                        this@ChromeService,
-                        0,
-                        Intent(this@ChromeService, ChromeService::class.java).apply {
-                            putExtra("COMMAND", "SHUTDOWN")
-                        },
-                        0
-                    )
+                    PendingIntent.getBroadcast(this@ChromeService, 0, Intent(SHUTDOWN_ACTION), 0)
                 )
         }.build()
     }
@@ -157,5 +200,7 @@ class ChromeService : Service() {
         const val NOTIFICATION_ID = 1
         const val RESULT_OK = 0
         const val RESULT_FAILED = 1
+        const val RESTART_ACTION = "RESTART_ACTION"
+        const val SHUTDOWN_ACTION = "SHUTDOWN_ACTION"
     }
 }

@@ -15,6 +15,7 @@ import kotlinx.android.synthetic.main.content_main.*
 
 class MainActivity : AppCompatActivity() {
 
+    private var importActivityStarted = false
     private var serviceWorking = false
     private var shuttingDown = false
 
@@ -43,14 +44,6 @@ class MainActivity : AppCompatActivity() {
                 "PENDING_INTENT",
                 createPendingResult(
                     ON_CHROME_SERVICE_START,
-                    Intent(),
-                    PendingIntent.FLAG_ONE_SHOT
-                )
-            )
-            putExtra(
-                "ON_DESTROY",
-                createPendingResult(
-                    ON_CHROME_SERVICE_DESTROY,
                     Intent(),
                     PendingIntent.FLAG_ONE_SHOT
                 )
@@ -91,12 +84,9 @@ class MainActivity : AppCompatActivity() {
             ON_CHROME_SERVICE_START -> {
                 serviceWorking = data?.extras?.getBoolean("WORKING") == true
                 if (serviceWorking) {
-                    // Foreground the service.
-                    Intent(this, ChromeService::class.java).run {
-                        putExtra("COMMAND", "START")
-                        startChromeService(this)
-                    }
-                } else {
+                    watchChromeService()
+                } else if (!importActivityStarted) {
+                    importActivityStarted = true
                     startImportActivity()
                 }
             }
@@ -111,11 +101,7 @@ class MainActivity : AppCompatActivity() {
             ON_CHROME_SERVICE_IMPORT -> {
                 if (resultCode == ChromeService.RESULT_OK) {
                     serviceWorking = true
-                    // Foreground the service.
-                    Intent(this, ChromeService::class.java).run {
-                        putExtra("COMMAND", "START")
-                        startChromeService(this)
-                    }
+                    watchChromeService()
                 }
                 data?.extras?.getString("MESSAGE")?.let { message ->
                     Snackbar.make(logTextView, message, Snackbar.LENGTH_LONG)
@@ -175,6 +161,21 @@ class MainActivity : AppCompatActivity() {
                 finish()
             }
             else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun watchChromeService() {
+        Intent(this, ChromeService::class.java).run {
+            putExtra("COMMAND", "START")
+            putExtra(
+                "ON_DESTROY",
+                createPendingResult(
+                    ON_CHROME_SERVICE_DESTROY,
+                    Intent(),
+                    PendingIntent.FLAG_ONE_SHOT
+                )
+            )
+            startChromeService(this)
         }
     }
 

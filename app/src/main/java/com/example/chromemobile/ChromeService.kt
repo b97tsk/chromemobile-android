@@ -27,6 +27,21 @@ class ChromeService : Service() {
         var pendingIntent: PendingIntent? = null
     }
 
+    private val logWriter = chromemobile.LogWriter { message ->
+        runBlocking {
+            log.withLock {
+                log.text.append(message)
+                runCatching {
+                    log.pendingIntent?.send(this@ChromeService, 0, Intent().apply {
+                        putExtra("MESSAGE", message)
+                    })
+                }.onFailure {
+                    log.pendingIntent = null
+                }
+            }
+        }
+    }
+
     override fun onBind(intent: Intent): IBinder? {
         return null
     }
@@ -51,29 +66,13 @@ class ChromeService : Service() {
             }
         )
 
-        chromemobile.Chromemobile.setLogOutput { message ->
-            runBlocking {
-                log.withLock {
-                    log.text.append(message)
-                    runCatching {
-                        log.pendingIntent?.send(this@ChromeService, 0, Intent().apply {
-                            putExtra("MESSAGE", message)
-                        })
-                    }.onFailure {
-                        log.pendingIntent = null
-                    }
-                }
-            }
-        }
-
-        chrome = chromemobile.ChromeService(filesDir.absolutePath)
+        chrome = chromemobile.ChromeService(filesDir.absolutePath, logWriter)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(broadcastReceiver)
         chrome.shutdown()
-        chromemobile.Chromemobile.setLogOutput { }
         runCatching { onDestroyReceiver?.send() }
     }
 
@@ -144,7 +143,7 @@ class ChromeService : Service() {
                 }
             }
         }
-        chrome = chromemobile.ChromeService(filesDir.absolutePath)
+        chrome = chromemobile.ChromeService(filesDir.absolutePath, logWriter)
         Toast.makeText(this, R.string.import_succeeded, Toast.LENGTH_LONG).show()
     }
 

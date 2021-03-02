@@ -24,13 +24,21 @@ class ChromeService : Service() {
 
     private val log = object : Mutex by Mutex() {
         val text = StringBuilder()
+        var textHalfLength = 0
         var pendingIntent: PendingIntent? = null
     }
 
     private val logWriter = chromemobile.LogWriter { message ->
         runBlocking {
             log.withLock {
+                if (log.textHalfLength < LOG_MAX_LENGTH/2) {
+                    log.textHalfLength = log.text.length
+                }
                 log.text.append(message)
+                if (log.text.length > LOG_MAX_LENGTH) {
+                    log.text.delete(0, log.textHalfLength)
+                    log.textHalfLength = 0
+                }
                 runCatching {
                     log.pendingIntent?.send(this@ChromeService, 0, Intent().apply {
                         putExtra("MESSAGE", message)
@@ -195,6 +203,7 @@ class ChromeService : Service() {
     }
 
     companion object {
+        const val LOG_MAX_LENGTH = 90000
         const val NOTIFICATION_CHANNEL_ID = "ChromeMobileService"
         const val NOTIFICATION_ID = 1
         const val RESULT_OK = 0

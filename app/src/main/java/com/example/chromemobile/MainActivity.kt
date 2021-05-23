@@ -25,11 +25,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
 
-        logScrollView.getChildAt(0).let { layout ->
-            var height = layout.height
-            layout.viewTreeObserver.addOnGlobalLayoutListener {
-                height = layout.height.also { new ->
-                    logScrollView.scrollBy(0, new - height)
+        logTextView.let { view ->
+            var height = view.height
+            view.viewTreeObserver.addOnGlobalLayoutListener {
+                height = view.height.also { new ->
+                    if (new > height) {
+                        logScrollView.scrollBy(0, new - height)
+                    }
                 }
             }
         }
